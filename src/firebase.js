@@ -1,4 +1,3 @@
-// Import the functions you need from the SDKs you need
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
@@ -6,12 +5,10 @@ import {
   signInWithEmailAndPassword,
   signOut,
 } from "firebase/auth";
-import { addDoc, getFirestore, collection } from "firebase/firestore";
+import { getFirestore, doc, setDoc, getDoc } from "firebase/firestore";
+import { getStorage } from "firebase/storage";
 import { toast } from "react-toastify";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
 
-// Your web app's Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyBr6KSNIg5baGInxIau3_QqK0khe8Br5aQ",
   authDomain: "netflix-clone-9990a.firebaseapp.com",
@@ -21,35 +18,50 @@ const firebaseConfig = {
   appId: "1:984335335518:web:1b77926ba52cb896c674cf",
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
+
+// Kullanıcı dokümanı yoksa oluştur
+const ensureUserDoc = async (user) => {
+  const userRef = doc(db, "users", user.uid);
+  const docSnap = await getDoc(userRef);
+  if (!docSnap.exists()) {
+    await setDoc(userRef, {
+      name: user.displayName || "",
+      email: user.email,
+      photoURL: "",
+      createdAt: new Date(),
+    });
+  }
+};
 
 const signup = async (name, email, password) => {
   try {
     const res = await createUserWithEmailAndPassword(auth, email, password);
     const user = res.user;
-    await addDoc(collection(db, "users"), {
-      uid: user.uid,
+    await setDoc(doc(db, "users", user.uid), {
       name,
-      authProvider: "local",
       email,
+      photoURL: "",
+      authProvider: "local",
+      createdAt: new Date(),
     });
+    toast.success("Kayıt başarılı!");
   } catch (error) {
-    console.log(error);
-    toast.error(error.code.split("/")[1].split("-").join(" "));
+    toast.error(error.message);
   }
 };
+
 const login = async (email, password) => {
   try {
     await signInWithEmailAndPassword(auth, email, password);
   } catch (error) {
-    console.log(error);
-    toast.error(error.code.split("/")[1].split("-").join(" "));
+    toast.error(error.message);
   }
 };
-const logout = () => {
-  signOut(auth);
-};
-export { auth, db, signup, login, logout };
+
+const logout = () => signOut(auth);
+
+export { auth, db, storage, signup, login, logout, ensureUserDoc };
